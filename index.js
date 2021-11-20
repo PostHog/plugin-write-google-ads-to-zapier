@@ -18,18 +18,19 @@ async function runEveryMinute({config, global, storage}) {
         return
     }
 
-    const TIME_KEY = 'queryStartTime'
-    const CATCHUP_DAYS = 2
+    const TIME_KEY = 'googleAdsLastQueryStartTime'
+    const CATCHUP_DAYS = 1
     const _lastRunTime = await storage.get(TIME_KEY)
 
-    let queryStartTime = _lastRunTime ? new Date(_lastRunTime) : new Date(2021, 7, 1)
-    if (queryStartTime < new Date(2021, 6, 1)) {
-        queryStartTime = new Date(2021, 6, 1)
-    }
+    let queryStartTime = _lastRunTime ? new Date(_lastRunTime) : new Date(2021, 6, 1)
 
     const queryEnd = addDays(queryStartTime, CATCHUP_DAYS) > new Date() ? new Date() : addDays(queryStartTime, CATCHUP_DAYS)
 
-    const actionIdToName = {11036: 'Sign up - cloud', 11037: 'Sign up - self-hosted free', 11038:'Sign up - self-hosted paid'  }
+    const actionIdToName = {
+        11036: 'Sign up - cloud',
+        11037: 'Sign up - self-hosted free',
+        11038: 'Sign up - self-hosted paid'
+    }
     console.log(`AWAKE AND QUERYING: ${queryStartTime} - ${queryEnd}`)
     const conversionEvents = []
     for (const actionId of Object.keys(actionIdToName)) {

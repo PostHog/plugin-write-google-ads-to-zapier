@@ -59,7 +59,8 @@ async function runEveryMinute({config, global, storage}) {
     const distinctIdToGclid = {}
     const queriedPersons = new Set()
     for (const event of conversionEvents) {
-        console.log(`[period=${queryStartTime}-${queryEnd}] Processed ${numProcessed} / ${conversionEvents.length} events, writes: ${writes}`)
+        console.log(`Period: ${queryStartTime} - ${queryEnd}`)
+        console.log(`Processed ${numProcessed} / ${conversionEvents.length} events, writes to zapier: ${writes}`)
 
         const distinctId = event['distinct_id']
         const eventProps = event['properties']
@@ -67,9 +68,6 @@ async function runEveryMinute({config, global, storage}) {
         let gclid = eventProps.gclid || eventProps.$initial_gclid || distinctIdToGclid[distinctId]
 
         // there's no gclid and we haven't already queried this persons' properties
-        if (queriedPersons.has(distinctId)) {
-            console.log('cache hit! :D ')
-        }
         if (!gclid && !queriedPersons.has(distinctId)) {
             let fetchUrl = `${global.posthogUrl}/api/person/?distinct_id=${distinctId}&token=${global.projectToken}`
             const _personRes = await fetch(

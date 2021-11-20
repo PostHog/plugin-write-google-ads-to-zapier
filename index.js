@@ -62,9 +62,11 @@ async function runEveryMinute({config, global, storage}) {
     let writes = 0
     const distinctIdToGclid = {}
     const queriedPersons = new Set()
+    console.log(`Begin processing events for Period: ${queryStartTime} - ${queryEnd}`)
     for (const event of conversionEvents) {
-        console.log(`Period: ${queryStartTime} - ${queryEnd}`)
-        console.log(`Processed ${numProcessed} / ${conversionEvents.length} events, writes to zapier: ${writes}`)
+        if (numProcessed % 10 === 0) {
+            console.log(`Processed ${numProcessed} / ${conversionEvents.length} events, writes to zapier: ${writes}`)
+        }
 
         const distinctId = event['distinct_id']
         const eventProps = event['properties']

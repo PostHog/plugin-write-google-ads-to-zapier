@@ -29,10 +29,10 @@ async function runEveryMinute({config, global, storage}) {
 
     const queryEnd = addDays(queryStartTime, CATCHUP_DAYS) > new Date() ? new Date() : addDays(queryStartTime, CATCHUP_DAYS)
 
-    const actions = [11196, 11038, 11037, 11036]
+    const actionIdToName = {11036: 'Sign up - cloud', 11037: 'Sign up - self-hosted free', 11038:'Sign up - self-hosted paid'  }
     console.log(`AWAKE AND QUERYING: ${queryStartTime} - ${queryEnd}`)
     const conversionEvents = []
-    for (const actionId of actions) {
+    for (const actionId of Object.keys(actionIdToName)) {
         let fetchUrl = `${global.posthogUrl}/api/event/?limit=1000&token=${global.projectToken}&action_id=${actionId}&after=${queryStartTime.toISOString()}&before=${queryEnd.toISOString()}`
         while (fetchUrl) {
             const _updateRes = await fetch(
@@ -47,6 +47,9 @@ async function runEveryMinute({config, global, storage}) {
                 }
             )
             const asJson = await _updateRes.json()
+            for (const eventJson of asJson['results']) {
+                eventJson.actionId = actionId
+            }
             conversionEvents.push(...asJson['results'])
             console.log(`LOADED Action id: ${actionId}, next: ${asJson['next']}; results: ${asJson['results'].length}, period: ${queryStartTime} - ${queryEnd}`)
             fetchUrl = asJson['next']
@@ -95,13 +98,13 @@ async function runEveryMinute({config, global, storage}) {
         if (gclid) {
             distinctIdToGclid[distinctId] = gclid
             const payload = {
-                action_id: "todo",
+                action_id: event.actionId,
                 gclid: gclid,
-                conversion_name: "todo",
+                conversion_name: actionIdToName[event.actionId],
                 timestamp: event.sent_at || event.timestamp
             }
 
-            await fetch('https://hooks.zapier.com/hooks/catch/8898847/bd66stu/', {
+            await fetch(config.zapierUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

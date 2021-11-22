@@ -2,18 +2,66 @@ async function setupPlugin({config, global}) {
     global.posthogUrl = config.postHogUrl
     global.apiToken = config.postHogApiToken
     global.projectToken = config.postHogProjectToken
-    global.syncScoresIntoPosthog = global.posthogUrl && global.apiToken && global.projectToken
+    global.zapierUrl = config.zapierUrl
+    global.isConfigSet = global.posthogUrl && global.apiToken && global.projectToken && global.zapierUrl
 }
 
 
 function addDays(date, days) {
-    var result = new Date(date);
-    result.setDate(result.getDate() + days);
-    return result;
+    const result = new Date(date)
+    result.setDate(result.getDate() + days)
+    return result
 }
 
-async function runEveryMinute({config, global, storage}) {
-    if (!global.syncScoresIntoPosthog) {
+function formatTimestampForGoogle(date){
+    const result = new Date(date)
+    const isValid = result.toString() !== 'Invalid Date'
+    if (isValid) {
+        result.setMilliseconds(0)
+        return result.toISOString().replace(/\.\d+Z$/, '+0000')
+    } else {
+        console.warn(`Received invalid date "${date}"`)
+        return date
+    }
+}
+
+function extractGclidFromEvent(event) {
+    const eventProperties = event.properties || {}
+    const personProperties = event.person?.properties || {}
+
+    if ('gclid' in eventProperties) {
+        return eventProperties.gclid
+    }
+    if ('gclid' in personProperties) {
+        return personProperties.gclid
+    }
+    if ('$initial_gclid' in personProperties) {
+        return personProperties.$initial_gclid
+    }
+    if ('$set' in eventProperties) {
+        const { $set } = eventProperties
+        if ('gclid' in $set) {
+            return $set.gclid
+        }
+        if ('$initial_gclid' in $set) {
+            return $set.$initial_gclid
+        }
+    }
+    if ('$set_once' in eventProperties) {
+        const { $set_once } = eventProperties
+        if ('gclid' in $set_once) {
+            return $set_once.gclid
+        }
+        if ('$initial_gclid' in $set_once) {
+            return $set_once.$initial_gclid
+        }
+    }
+
+    return null
+}
+
+async function runEveryMinute({ global, storage }) {
+    if (!global.isConfigSet) {
         console.log('Not syncing Hubspot Scores into PostHog - config not set.')
         return
     }
@@ -69,9 +117,8 @@ async function runEveryMinute({config, global, storage}) {
         }
 
         const distinctId = event['distinct_id']
-        const eventProps = event['properties']
 
-        let gclid = eventProps.gclid || eventProps.$initial_gclid || distinctIdToGclid[distinctId]
+        let gclid = extractGclidFromEvent(event) || distinctIdToGclid[distinctId]
 
         // there's no gclid and we haven't already queried this persons' properties
         if (!gclid && !queriedPersons.has(distinctId)) {
@@ -107,7 +154,7 @@ async function runEveryMinute({config, global, storage}) {
                 timestamp: event.sent_at || event.timestamp
             }
 
-            await fetch(config.zapierUrl, {
+            await fetch(global.zapierUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -8,11 +8,21 @@ async function setupPlugin({config, global}) {
         const [actionId, conversionName] = pair.split(':')
         global.actionIdToName[parseInt(actionId)] = conversionName
     })
-    global.isConfigSet = global.posthogUrl && global.apiToken && global.projectToken && global.zapierUrl
+    global.defaultStartTime = config.defaultStartTime ? new Date(config.defaultStartTime) : new Date(2021, 6, 1)
+    global.isConfigSet = global.posthogUrl
+        && global.apiToken
+        && global.projectToken
+        && global.zapierUrl
+        && Object.keys(global.actionIdToName).length
+        && isValidDate(global.defaultStartTime)
 }
 
 function cleanInstanceUrl(url) {
     return url.replace(/\/$/, '')
+}
+
+function isValidDate(date) {
+    return date.toString() !== 'Invalid Date'
 }
 
 function addDays(date, days) {
@@ -23,8 +33,7 @@ function addDays(date, days) {
 
 function formatTimestampForGoogle(date){
     const result = new Date(date)
-    const isValid = result.toString() !== 'Invalid Date'
-    if (isValid) {
+    if (isValidDate(result)) {
         result.setMilliseconds(0)
         return result.toISOString().replace(/\.\d+Z$/, '+0000')
     } else {
@@ -78,7 +87,7 @@ async function runEveryMinute({ global, storage }) {
     const CATCHUP_DAYS = 1
     const _lastRunTime = await storage.get(TIME_KEY)
 
-    let queryStartTime = _lastRunTime ? new Date(_lastRunTime) : new Date(2021, 6, 1)
+    let queryStartTime = _lastRunTime ? new Date(_lastRunTime) : global.defaultStartTime
 
     const queryEnd = addDays(queryStartTime, CATCHUP_DAYS) > new Date() ? new Date() : addDays(queryStartTime, CATCHUP_DAYS)
 
@@ -154,7 +163,7 @@ async function runEveryMinute({ global, storage }) {
                 action_id: event.actionId,
                 gclid: gclid,
                 conversion_name: global.actionIdToName[event.actionId],
-                timestamp: event.sent_at || event.timestamp
+                timestamp: formatTimestampForGoogle(event.sent_at || event.timestamp)
             }
 
             await fetch(global.zapierUrl, {

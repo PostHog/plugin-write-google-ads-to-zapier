@@ -1,11 +1,19 @@
 async function setupPlugin({config, global}) {
-    global.posthogUrl = config.postHogUrl
+    global.posthogUrl = cleanInstanceUrl(config.postHogUrl)
     global.apiToken = config.postHogApiToken
     global.projectToken = config.postHogProjectToken
     global.zapierUrl = config.zapierUrl
+    global.actionIdToName = {}
+    config.actionIdToName.split(',').forEach(pair => {
+        const [actionId, conversionName] = pair.split(':')
+        global.actionIdToName[parseInt(actionId)] = conversionName
+    })
     global.isConfigSet = global.posthogUrl && global.apiToken && global.projectToken && global.zapierUrl
 }
 
+function cleanInstanceUrl(url) {
+    return url.replace(/\/$/, '')
+}
 
 function addDays(date, days) {
     const result = new Date(date)
@@ -62,7 +70,7 @@ function extractGclidFromEvent(event) {
 
 async function runEveryMinute({ global, storage }) {
     if (!global.isConfigSet) {
-        console.log('Not syncing Hubspot Scores into PostHog - config not set.')
+        console.log('Not syncing - config not set.')
         return
     }
 
@@ -74,14 +82,9 @@ async function runEveryMinute({ global, storage }) {
 
     const queryEnd = addDays(queryStartTime, CATCHUP_DAYS) > new Date() ? new Date() : addDays(queryStartTime, CATCHUP_DAYS)
 
-    const actionIdToName = {
-        11036: 'Sign up - cloud',
-        11037: 'Sign up - self-hosted free',
-        11038: 'Sign up - self-hosted paid'
-    }
     console.log(`AWAKE AND QUERYING: ${queryStartTime} - ${queryEnd}`)
     const conversionEvents = []
-    for (const actionId of Object.keys(actionIdToName)) {
+    for (const actionId of Object.keys(global.actionIdToName)) {
         let fetchUrl = `${global.posthogUrl}/api/event/?limit=1000&token=${global.projectToken}&action_id=${actionId}&after=${queryStartTime.toISOString()}&before=${queryEnd.toISOString()}`
         while (fetchUrl) {
             const _updateRes = await fetch(
@@ -150,7 +153,7 @@ async function runEveryMinute({ global, storage }) {
             const payload = {
                 action_id: event.actionId,
                 gclid: gclid,
-                conversion_name: actionIdToName[event.actionId],
+                conversion_name: global.actionIdToName[event.actionId],
                 timestamp: event.sent_at || event.timestamp
             }
 
@@ -174,6 +177,3 @@ async function runEveryMinute({ global, storage }) {
     await storage.set(TIME_KEY, queryEnd)
     console.log(`UPDATED TIME TO: ${queryEnd}`)
 }
-
-
-

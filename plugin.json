@@ -5,12 +5,20 @@
     "main": "index.js",
     "config": [
         {
+            "key": "actionIdToName",
+            "hint": "Comma-separated map from action ids to names. No spaces between entries.",
+            "name": "Action IDs to Conversion Names (map)",
+            "type": "string",
+            "default": "11036:Sign up - cloud,11037:Sign up - self-hosted free,11038:Sign up - self-hosted paid",
+            "required": true
+        },
+        {
             "key": "postHogUrl",
             "hint": "The PostHog instance URL from which you want to fetch events and persons data.",
-            "name": "Hubspot Score PostHog Instance",
+            "name": "PostHog Instance URL",
             "type": "string",
             "default": "https://app.posthog.com",
-            "required": false
+            "required": true
         },
         {
             "key": "postHogApiToken",
@@ -18,7 +26,7 @@
             "name": "PostHog API Access Key",
             "type": "string",
             "default": "",
-            "required": false
+            "required": true
         },
         {
             "key": "postHogProjectToken",
@@ -26,7 +34,7 @@
             "name": "PostHog Project Token",
             "type": "string",
             "default": "",
-            "required": false
+            "required": true
         },
         {
             "key": "zapierUrl",
@@ -34,7 +42,7 @@
             "name": "Zapier URL",
             "type": "string",
             "default": "",
-            "required": false
+            "required": true
         }
     ]
 }

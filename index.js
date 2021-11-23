@@ -1,5 +1,5 @@
 async function setupPlugin({config, global}) {
-    global.posthogUrl = cleanInstanceUrl(config.postHogUrl)
+    global.posthogUrl = config.postHogUrl.replace(/\/$/, '')
     global.apiToken = config.postHogApiToken
     global.projectToken = config.postHogProjectToken
     global.zapierUrl = config.zapierUrl
@@ -8,17 +8,16 @@ async function setupPlugin({config, global}) {
         const [actionId, conversionName] = pair.split(':')
         global.actionIdToName[parseInt(actionId)] = conversionName
     })
-    global.defaultStartTime = config.defaultStartTime ? new Date(config.defaultStartTime) : new Date(2021, 6, 1)
-    global.isConfigSet = global.posthogUrl
+    global.defaultStartTime = new Date(config.defaultStartTime)
+    const isConfigValid = global.posthogUrl
         && global.apiToken
         && global.projectToken
         && global.zapierUrl
         && Object.keys(global.actionIdToName).length
         && isValidDate(global.defaultStartTime)
-}
-
-function cleanInstanceUrl(url) {
-    return url.replace(/\/$/, '')
+    if (!isConfigValid) {
+        throw new Error('One or more required config fields is missing or invalid.')
+    }
 }
 
 function isValidDate(date) {
@@ -78,11 +77,6 @@ function extractGclidFromEvent(event) {
 }
 
 async function runEveryMinute({ global, storage }) {
-    if (!global.isConfigSet) {
-        console.log('Not syncing - config not set.')
-        return
-    }
-
     const TIME_KEY = 'googleAdsLastQueryStartTime'
     const CATCHUP_DAYS = 1
     const _lastRunTime = await storage.get(TIME_KEY)

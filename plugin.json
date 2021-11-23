@@ -14,7 +14,7 @@
         },
         {
             "key": "defaultStartTime",
-            "hint": "Point in time from which to start fetching data. Should be ISO format for best results.",
+            "hint": "Point in time from which to start fetching data. Should be ISO 8601 or RFC 2822 format.",
             "name": "Default start time",
             "type": "string",
             "default": "2021-07-01",

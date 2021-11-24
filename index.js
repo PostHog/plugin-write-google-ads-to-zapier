@@ -14,14 +14,10 @@ async function setupPlugin({config, global}) {
         && global.projectToken
         && global.zapierUrl
         && Object.keys(global.actionIdToName).length
-        && isValidDate(global.defaultStartTime)
+        && global.defaultStartTime.toString() !== 'Invalid Date'
     if (!isConfigValid) {
         throw new Error('One or more required config fields is missing or invalid.')
     }
-}
-
-function isValidDate(date) {
-    return date.toString() !== 'Invalid Date'
 }
 
 function addDays(date, days) {
@@ -31,11 +27,11 @@ function addDays(date, days) {
 }
 
 function formatTimestampForGoogle(date){
-    const result = new Date(date)
-    if (isValidDate(result)) {
+    try {
+        const result = new Date(date)
         result.setMilliseconds(0)
         return result.toISOString().replace(/\.\d+Z$/, '+0000')
-    } else {
+    } catch (err) {
         console.warn(`Received invalid date "${date}"`)
         return date
     }

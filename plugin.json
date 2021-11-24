@@ -5,60 +5,44 @@
     "main": "index.js",
     "config": [
         {
-            "key": "hubspotApiKey",
-            "hint": "Can be acquired under Profile Preferences -> Integrations",
-            "name": "Hubspot API Key",
+            "key": "actionIdToName",
+            "hint": "Comma-separated map from action ids to names. No spaces between entries.",
+            "name": "Action IDs to Conversion Names (map)",
             "type": "string",
-            "default": "",
+            "default": "11036:Sign up - cloud,11037:Sign up - self-hosted free,11038:Sign up - self-hosted paid",
             "required": true
         },
         {
-            "key": "triggeringEvents",
-            "hint": "A comma-separated list of PostHog events you want to trigger Contact creation in HubSpot. By default, we recommend using the $identify event.",
-            "name": "Triggering events",
+            "key": "defaultStartTime",
+            "hint": "Point in time from which to start fetching data. Should be ISO 8601 or RFC 2822 format.",
+            "name": "Default start time",
             "type": "string",
-            "default": "$identify",
+            "default": "2021-07-01",
             "required": true
-        },
-        {
-            "key": "additionalPropertyMappings",
-            "hint": "A mapping of additional PostHog event or person properties to map to newly created Hubspot Contacts. Provide a comma-separated mapping of: personPropertyName:hubSpotPropertyName",
-            "name": "Additional PostHog to HubSpot property mappings",
-            "type": "string",
-            "default": "",
-            "required": false
-        },
-        {
-            "key": "ignoredEmails",
-            "hint": "A comma-separated list of email domains to ignore and not create contacts for in Hubspot.",
-            "name": "Email domains to skip",
-            "type": "string",
-            "default": "",
-            "required": false
         },
         {
             "key": "postHogUrl",
-            "hint": "The PostHog instance URL you want Hubspot Scores synced into. Required to sync Hubspot contact scores into PostHog Persons.",
-            "name": "Hubspot Score PostHog Instance",
+            "hint": "The PostHog instance URL from which you want to fetch events and persons data.",
+            "name": "PostHog Instance URL",
             "type": "string",
             "default": "https://app.posthog.com",
-            "required": false
+            "required": true
         },
         {
             "key": "postHogApiToken",
-            "hint": "A personal API key created from the 'My Account' menu. Required to sync Hubspot Scores into PostHog.",
+            "hint": "A personal API key created from the 'My Account' menu.",
             "name": "PostHog API Access Key",
             "type": "string",
             "default": "",
-            "required": false
+            "required": true
         },
         {
             "key": "postHogProjectToken",
-            "hint": "The project you want to sync Hubspot Scores into. Can be found in Project Settings. Required to sync Hubspot Scores into PostHog.",
+            "hint": "The project from which you want to fetch events and persons data. Can be found in Project Settings.",
             "name": "PostHog Project Token",
             "type": "string",
             "default": "",
-            "required": false
+            "required": true
         },
         {
             "key": "zapierUrl",
@@ -66,7 +50,7 @@
             "name": "Zapier URL",
             "type": "string",
             "default": "",
-            "required": false
+            "required": true
         }
     ]
 }

@@ -1,39 +1,89 @@
 async function setupPlugin({config, global}) {
-    global.posthogUrl = config.postHogUrl
+    global.posthogUrl = config.postHogUrl.replace(/\/$/, '')
     global.apiToken = config.postHogApiToken
     global.projectToken = config.postHogProjectToken
-    global.syncScoresIntoPosthog = global.posthogUrl && global.apiToken && global.projectToken
+    global.zapierUrl = config.zapierUrl
+    global.actionIdToName = {}
+    config.actionIdToName.split(',').forEach(pair => {
+        const [actionId, conversionName] = pair.split(':')
+        global.actionIdToName[parseInt(actionId)] = conversionName
+    })
+    global.defaultStartTime = new Date(config.defaultStartTime)
+    const isConfigValid = global.posthogUrl
+        && global.apiToken
+        && global.projectToken
+        && global.zapierUrl
+        && Object.keys(global.actionIdToName).length
+        && global.defaultStartTime.toString() !== 'Invalid Date'
+    if (!isConfigValid) {
+        throw new Error('One or more required config fields is missing or invalid.')
+    }
 }
-
 
 function addDays(date, days) {
-    var result = new Date(date);
-    result.setDate(result.getDate() + days);
-    return result;
+    const result = new Date(date)
+    result.setDate(result.getDate() + days)
+    return result
 }
 
-async function runEveryMinute({config, global, storage}) {
-    if (!global.syncScoresIntoPosthog) {
-        console.log('Not syncing Hubspot Scores into PostHog - config not set.')
-        return
+function formatTimestampForGoogle(date){
+    try {
+        const result = new Date(date)
+        result.setMilliseconds(0)
+        return result.toISOString().replace(/\.\d+Z$/, '+0000')
+    } catch (err) {
+        console.warn(`Received invalid date "${date}"`)
+        return date
+    }
+}
+
+function extractGclidFromEvent(event) {
+    const eventProperties = event.properties || {}
+    const personProperties = event.person?.properties || {}
+
+    if ('gclid' in eventProperties) {
+        return eventProperties.gclid
+    }
+    if ('gclid' in personProperties) {
+        return personProperties.gclid
+    }
+    if ('$initial_gclid' in personProperties) {
+        return personProperties.$initial_gclid
+    }
+    if ('$set' in eventProperties) {
+        const { $set } = eventProperties
+        if ('gclid' in $set) {
+            return $set.gclid
+        }
+        if ('$initial_gclid' in $set) {
+            return $set.$initial_gclid
+        }
+    }
+    if ('$set_once' in eventProperties) {
+        const { $set_once } = eventProperties
+        if ('gclid' in $set_once) {
+            return $set_once.gclid
+        }
+        if ('$initial_gclid' in $set_once) {
+            return $set_once.$initial_gclid
+        }
     }
 
+    return null
+}
+
+async function runEveryMinute({ global, storage }) {
     const TIME_KEY = 'googleAdsLastQueryStartTime'
     const CATCHUP_DAYS = 1
     const _lastRunTime = await storage.get(TIME_KEY)
 
-    let queryStartTime = _lastRunTime ? new Date(_lastRunTime) : new Date(2021, 6, 1)
+    let queryStartTime = _lastRunTime ? new Date(_lastRunTime) : global.defaultStartTime
 
     const queryEnd = addDays(queryStartTime, CATCHUP_DAYS) > new Date() ? new Date() : addDays(queryStartTime, CATCHUP_DAYS)
 
-    const actionIdToName = {
-        11036: 'Sign up - cloud',
-        11037: 'Sign up - self-hosted free',
-        11038: 'Sign up - self-hosted paid'
-    }
     console.log(`AWAKE AND QUERYING: ${queryStartTime} - ${queryEnd}`)
     const conversionEvents = []
-    for (const actionId of Object.keys(actionIdToName)) {
+    for (const actionId of Object.keys(global.actionIdToName)) {
         let fetchUrl = `${global.posthogUrl}/api/event/?limit=1000&token=${global.projectToken}&action_id=${actionId}&after=${queryStartTime.toISOString()}&before=${queryEnd.toISOString()}`
         while (fetchUrl) {
             const _updateRes = await fetch(
@@ -69,9 +119,8 @@ async function runEveryMinute({config, global, storage}) {
         }
 
         const distinctId = event['distinct_id']
-        const eventProps = event['properties']
 
-        let gclid = eventProps.gclid || eventProps.$initial_gclid || distinctIdToGclid[distinctId]
+        let gclid = extractGclidFromEvent(event) || distinctIdToGclid[distinctId]
 
         // there's no gclid and we haven't already queried this persons' properties
         if (!gclid && !queriedPersons.has(distinctId)) {
@@ -103,11 +152,11 @@ async function runEveryMinute({config, global, storage}) {
             const payload = {
                 action_id: event.actionId,
                 gclid: gclid,
-                conversion_name: actionIdToName[event.actionId],
-                timestamp: event.sent_at || event.timestamp
+                conversion_name: global.actionIdToName[event.actionId],
+                timestamp: formatTimestampForGoogle(event.sent_at || event.timestamp)
             }
 
-            await fetch(config.zapierUrl, {
+            await fetch(global.zapierUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -127,6 +176,3 @@ async function runEveryMinute({config, global, storage}) {
     await storage.set(TIME_KEY, queryEnd)
     console.log(`UPDATED TIME TO: ${queryEnd}`)
 }
-
-
-

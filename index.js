@@ -31,7 +31,7 @@ function formatTimestampForGoogle(date){
         const cleanedDate = new Date(date)
         cleanedDate.setMilliseconds(0)
         const dateParts = cleanedDate.toISOString().split('.')
-        return dateParts[0] + "+0000"
+        return `${dateParts[0]} Africa/Abidjan`
 
     } catch (err) {
         console.warn(`Received invalid date "${date}"`)
@@ -75,11 +75,12 @@ function extractGclidFromEvent(event) {
 }
 
 async function runEveryMinute({ global, storage }) {
-    const TIME_KEY = 'googleAdsLastQueryStartTime_V2'
+    const TIME_KEY = 'googleAdsLastQueryStartTime_v2'
     const CATCHUP_DAYS = 1
     const _lastRunTime = await storage.get(TIME_KEY)
 
     let queryStartTime = _lastRunTime ? new Date(_lastRunTime) : global.defaultStartTime
+
 
     const queryEnd = addDays(queryStartTime, CATCHUP_DAYS) > new Date() ? new Date() : addDays(queryStartTime, CATCHUP_DAYS)
 
@@ -151,6 +152,7 @@ async function runEveryMinute({ global, storage }) {
                 }
             }
         }
+
         if (gclid) {
             distinctIdToGclid[distinctId] = gclid
             const payload = {

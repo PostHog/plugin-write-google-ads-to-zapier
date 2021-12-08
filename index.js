@@ -28,9 +28,11 @@ function addDays(date, days) {
 
 function formatTimestampForGoogle(date){
     try {
-        const result = new Date(date)
-        result.setMilliseconds(0)
-        return result.toISOString().replace(/\.\d+Z$/, '+0000')
+        const cleanedDate = new Date(date)
+        cleanedDate.setMilliseconds(0)
+        const dateParts = cleanedDate.toISOString().split('.')
+        return dateParts[0] + "+0000"
+
     } catch (err) {
         console.warn(`Received invalid date "${date}"`)
         return date
@@ -73,7 +75,7 @@ function extractGclidFromEvent(event) {
 }
 
 async function runEveryMinute({ global, storage }) {
-    const TIME_KEY = 'googleAdsLastQueryStartTime'
+    const TIME_KEY = 'googleAdsLastQueryStartTime_V2'
     const CATCHUP_DAYS = 1
     const _lastRunTime = await storage.get(TIME_KEY)
 
@@ -98,11 +100,14 @@ async function runEveryMinute({ global, storage }) {
                 }
             )
             const asJson = await _updateRes.json()
-            for (const eventJson of asJson['results']) {
-                eventJson.actionId = actionId
+
+            if (asJson['results']) {
+                for (const eventJson of asJson['results']) {
+                    eventJson.actionId = actionId
+                }
+                conversionEvents.push(...asJson['results'])
             }
-            conversionEvents.push(...asJson['results'])
-            console.log(`LOADED Action id: ${actionId}, next: ${asJson['next']}; results: ${asJson['results'].length}, period: ${queryStartTime} - ${queryEnd}`)
+            console.log(`LOADED Action id: ${actionId}, next: ${asJson['next']}; results: ${asJson['results'] ? asJson['results'].length : 0}, period: ${queryStartTime} - ${queryEnd}`)
             fetchUrl = asJson['next']
         }
     }
@@ -146,7 +151,6 @@ async function runEveryMinute({ global, storage }) {
                 }
             }
         }
-
         if (gclid) {
             distinctIdToGclid[distinctId] = gclid
             const payload = {
